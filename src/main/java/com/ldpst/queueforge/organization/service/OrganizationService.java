@@ -8,6 +8,7 @@ import java.time.Instant;
 
 import org.springframework.stereotype.Service;
 
+import com.ldpst.queueforge.common.exception.ConflictException;
 import com.ldpst.queueforge.organization.dto.CreateOrganizationRequest;
 import com.ldpst.queueforge.organization.repository.OrganizationRepository;
 
@@ -20,7 +21,7 @@ public class OrganizationService {
 
     public OrganizationResponse create(CreateOrganizationRequest request) {
         if (organizationRepository.existsByNameIgnoreCase(request.name())) {
-            throw new IllegalArgumentException("Organization with this name already exists");
+            throw new ConflictException("Organization with this name already exists");
         }
 
         Instant now = Instant.now();
