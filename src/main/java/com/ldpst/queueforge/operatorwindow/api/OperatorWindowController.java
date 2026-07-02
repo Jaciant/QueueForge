@@ -10,12 +10,15 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ldpst.queueforge.operatorwindow.dto.CreateOperatorWindowRequest;
 import com.ldpst.queueforge.operatorwindow.dto.OperatorWindowResponse;
 import com.ldpst.queueforge.operatorwindow.service.OperatorWindowManagementService;
+import com.ldpst.queueforge.ticket.dto.TicketResponse;
+import com.ldpst.queueforge.ticket.service.TicketCallService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/v1")
 public class OperatorWindowController {
     private final OperatorWindowManagementService operatorWindowManagementService;
+    private final TicketCallService ticketCallService;
 
     @PostMapping("/branches/{branchId}/operator-windows")
     @ResponseStatus(HttpStatus.CREATED)
@@ -48,6 +52,14 @@ public class OperatorWindowController {
     @PatchMapping("/operator-windows/{windowId}/open")
     public OperatorWindowResponse open(@PathVariable UUID windowId) {
         return operatorWindowManagementService.open(windowId);
+    }
+
+    @PostMapping("/operator-windows/{windowId}/call-next")
+    public TicketResponse callNext(
+            @PathVariable UUID windowId,
+            @RequestParam(required = false) UUID serviceId
+    ) {
+        return ticketCallService.callNext(windowId, serviceId);
     }
 
     @PatchMapping("/operator-windows/{windowId}/pause")
