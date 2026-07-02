@@ -2,11 +2,16 @@ package com.ldpst.queueforge.queueservice.dto;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record CreateQueueServiceRequest(
     @NotBlank(message = "Service code must not be blank")
     @Size(max = 32, message = "Service code must be at most 32 characters")
+    @Pattern(
+        regexp = "^[A-Za-z0-9_-]+$",
+        message = "Service code must contain only letters, digits, underscore or hyphen"
+    )
     String code,
 
     @NotBlank(message = "Service name must not be blank")
