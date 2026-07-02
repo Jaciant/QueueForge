@@ -123,7 +123,7 @@ public class GlobalExceptionHandler {
     ) {
         return buildErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                "Unexpected internal server error",
+                "Unexpected internal server error. (Dev: " + exception.getMessage() + ")",
                 request.getRequestURI()
         );
     }
