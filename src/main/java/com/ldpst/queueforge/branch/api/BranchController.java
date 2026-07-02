@@ -38,7 +38,7 @@ public class BranchController {
     }
 
     @GetMapping("/branches/{branchId}")
-    public BranchResponse getMethodName(@PathVariable UUID branchId) {
+    public BranchResponse getById(@PathVariable UUID branchId) {
         return branchService.getById(branchId);
     }
     
