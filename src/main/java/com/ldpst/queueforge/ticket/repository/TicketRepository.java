@@ -6,11 +6,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.ldpst.queueforge.ticket.entity.TicketEntity;
 import com.ldpst.queueforge.ticket.entity.TicketStatus;
+
+import jakarta.persistence.LockModeType;
 
 public interface TicketRepository extends JpaRepository<TicketEntity, UUID> {
     List<TicketEntity> findAllByBranchIdAndStatusOrderByPriorityDescCreatedAtAsc(
@@ -25,6 +28,10 @@ public interface TicketRepository extends JpaRepository<TicketEntity, UUID> {
     );
 
     boolean existsByOperatorWindowIdAndStatusIn(UUID operatorWindowId, Collection<TicketStatus> statuses);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from TicketEntity t where t.id = :id")
+    Optional<TicketEntity> findByIdForUpdate(@Param("id") UUID id);
 
     @Query(value = """
             select *
