@@ -41,6 +41,7 @@ public class BranchBoardService {
 
         List<QueueServiceEntity> queueServices = queueServiceRepository.findAllByBranchIdOrderByCreatedAtAsc(branchId);
         List<OperatorWindowEntity> operatorWindows = operatorWindowRepository.findAllByBranchIdOrderByNumberAsc(branchId);
+        List<BranchBoardTicketRow> waitingTickets = branchBoardQueryRepository.getWaitingTickets(branchId);
         List<BranchBoardTicketRow> activeTickets = branchBoardQueryRepository.getActiveTickets(branchId);
 
         Map<UUID, QueueServiceEntity> serviceById = queueServices.stream()
@@ -79,14 +80,15 @@ public class BranchBoardService {
                 ))
                 .toList();
 
+        List<TicketBoardResponse> waitingTicketResponses = waitingTickets.stream()
+                .map(ticket -> toTicketResponse(ticket, serviceById, windowById))
+                .toList();
+
         List<TicketBoardResponse> activeTicketResponses = activeTickets.stream()
                 .map(ticket -> toTicketResponse(ticket, serviceById, windowById))
                 .toList();
 
-        long totalWaitingCount = waitingCountByServiceId.values()
-                .stream()
-                .mapToLong(Long::longValue)
-                .sum();
+        long totalWaitingCount = waitingTicketResponses.size();
 
         return new BranchBoardResponse(
                 branch.getId(),
@@ -96,6 +98,7 @@ public class BranchBoardService {
                 totalWaitingCount,
                 serviceResponses,
                 windowResponses,
+                waitingTicketResponses,
                 activeTicketResponses
         );
     }

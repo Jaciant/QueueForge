@@ -14,6 +14,7 @@ public record BranchBoardResponse(
     long totalWaitingCount,
     List<QueueServiceBoardResponse> services,
     List<OperatorWindowBoardResponse> windows,
+    List<TicketBoardResponse> waitingTickets,
     List<TicketBoardResponse> activeTickets
 ) {
 }

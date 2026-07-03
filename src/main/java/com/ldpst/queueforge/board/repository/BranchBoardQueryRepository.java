@@ -47,6 +47,23 @@ public class BranchBoardQueryRepository {
             order by service_id, priority desc, created_at asc
             """;
 
+    private static final String WAITING_TICKETS_SQL = """
+            select
+                id,
+                service_id,
+                operator_window_id,
+                ticket_number,
+                status,
+                priority,
+                created_at,
+                called_at,
+                service_started_at
+            from tickets
+            where branch_id = cast(:branchId as uuid)
+              and status = 'WAITING'
+            order by priority desc, created_at asc
+            """;
+
     private static final String ACTIVE_TICKETS_SQL = """
             select
                 id,
@@ -99,6 +116,14 @@ public class BranchBoardQueryRepository {
 
                     return result;
                 }
+        );
+    }
+
+    public List<BranchBoardTicketRow> getWaitingTickets(UUID branchId) {
+        return jdbcTemplate.query(
+                WAITING_TICKETS_SQL,
+                branchIdParams(branchId),
+                (resultSet, rowNumber) -> mapTicketRow(resultSet)
         );
     }
 
