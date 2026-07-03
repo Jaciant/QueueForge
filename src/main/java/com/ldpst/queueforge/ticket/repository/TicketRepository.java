@@ -44,6 +44,22 @@ public interface TicketRepository extends JpaRepository<TicketEntity, UUID> {
             """, nativeQuery = true)
     Optional<TicketEntity> findNextWaitingForUpdate(@Param("branchId") UUID branchId);
 
+
+    @Query(value = """
+            select *
+            from tickets
+            where branch_id = :branchId
+              and service_id in (:serviceIds)
+              and status = 'WAITING'
+            order by priority desc, created_at asc
+            limit 1
+            for update skip locked
+            """, nativeQuery = true)
+    Optional<TicketEntity> findNextWaitingByServicesForUpdate(
+            @Param("branchId") UUID branchId,
+            @Param("serviceIds") Collection<UUID> serviceIds
+    );
+
     @Query(value = """
             select *
             from tickets

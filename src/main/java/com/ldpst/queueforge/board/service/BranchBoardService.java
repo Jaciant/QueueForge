@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ldpst.queueforge.board.dto.AssignedQueueServiceBoardResponse;
 import com.ldpst.queueforge.board.dto.BranchBoardResponse;
 import com.ldpst.queueforge.board.dto.OperatorWindowBoardResponse;
 import com.ldpst.queueforge.board.dto.QueueServiceBoardResponse;
@@ -52,6 +53,7 @@ public class BranchBoardService {
 
         Map<UUID, Long> waitingCountByServiceId = branchBoardQueryRepository.getWaitingCountByService(branchId);
         Map<UUID, BranchBoardTicketRow> nextWaitingTicketByServiceId = branchBoardQueryRepository.getNextWaitingTicketByService(branchId);
+        Map<UUID, List<UUID>> assignedServiceIdsByWindowId = branchBoardQueryRepository.getAssignedServiceIdsByWindow(branchId);
 
         Map<UUID, BranchBoardTicketRow> activeTicketByWindowId = activeTickets.stream()
                 .filter(ticket -> ticket.operatorWindowId() != null)
@@ -74,6 +76,7 @@ public class BranchBoardService {
         List<OperatorWindowBoardResponse> windowResponses = operatorWindows.stream()
                 .map(operatorWindow -> toOperatorWindowResponse(
                         operatorWindow,
+                        assignedServiceIdsByWindowId.getOrDefault(operatorWindow.getId(), List.of()),
                         activeTicketByWindowId.get(operatorWindow.getId()),
                         serviceById,
                         windowById
@@ -122,6 +125,7 @@ public class BranchBoardService {
 
     private OperatorWindowBoardResponse toOperatorWindowResponse(
             OperatorWindowEntity operatorWindow,
+            List<UUID> assignedServiceIds,
             BranchBoardTicketRow currentTicket,
             Map<UUID, QueueServiceEntity> serviceById,
             Map<UUID, OperatorWindowEntity> windowById
@@ -131,7 +135,21 @@ public class BranchBoardService {
                 operatorWindow.getNumber(),
                 operatorWindow.getName(),
                 operatorWindow.getStatus(),
+                assignedServiceIds.stream()
+                        .map(serviceById::get)
+                        .filter(queueService -> queueService != null)
+                        .map(this::toAssignedQueueServiceResponse)
+                        .toList(),
                 toTicketResponse(currentTicket, serviceById, windowById)
+        );
+    }
+
+    private AssignedQueueServiceBoardResponse toAssignedQueueServiceResponse(QueueServiceEntity queueService) {
+        return new AssignedQueueServiceBoardResponse(
+                queueService.getId(),
+                queueService.getCode(),
+                queueService.getName(),
+                queueService.isActive()
         );
     }
 

@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,6 +82,16 @@ public class BranchBoardQueryRepository {
             order by called_at desc
             """;
 
+    private static final String ASSIGNED_SERVICES_BY_WINDOW_SQL = """
+            select
+                ows.operator_window_id,
+                ows.service_id
+            from operator_window_services ows
+            join operator_windows ow on ow.id = ows.operator_window_id
+            where ow.branch_id = cast(:branchId as uuid)
+            order by ow.number asc, ows.created_at asc
+            """;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public Map<UUID, Long> getWaitingCountByService(UUID branchId) {
@@ -132,6 +143,24 @@ public class BranchBoardQueryRepository {
                 ACTIVE_TICKETS_SQL,
                 branchIdParams(branchId),
                 (resultSet, rowNumber) -> mapTicketRow(resultSet)
+        );
+    }
+
+    public Map<UUID, List<UUID>> getAssignedServiceIdsByWindow(UUID branchId) {
+        return jdbcTemplate.query(
+                ASSIGNED_SERVICES_BY_WINDOW_SQL,
+                branchIdParams(branchId),
+                resultSet -> {
+                    Map<UUID, List<UUID>> result = new LinkedHashMap<>();
+
+                    while (resultSet.next()) {
+                        UUID windowId = resultSet.getObject("operator_window_id", UUID.class);
+                        UUID serviceId = resultSet.getObject("service_id", UUID.class);
+                        result.computeIfAbsent(windowId, ignored -> new ArrayList<>()).add(serviceId);
+                    }
+
+                    return result;
+                }
         );
     }
 

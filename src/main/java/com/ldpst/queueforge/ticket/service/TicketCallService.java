@@ -17,6 +17,7 @@ import com.ldpst.queueforge.common.exception.NotFoundException;
 import com.ldpst.queueforge.operatorwindow.entity.OperatorWindowEntity;
 import com.ldpst.queueforge.operatorwindow.entity.OperatorWindowStatus;
 import com.ldpst.queueforge.operatorwindow.repository.OperatorWindowRepository;
+import com.ldpst.queueforge.operatorwindow.serviceassignment.repository.OperatorWindowServiceAssignmentRepository;
 import com.ldpst.queueforge.queueservice.entity.QueueServiceEntity;
 import com.ldpst.queueforge.queueservice.repository.QueueServiceRepository;
 import com.ldpst.queueforge.ticket.dto.TicketResponse;
@@ -36,6 +37,7 @@ public class TicketCallService {
     private final OperatorWindowRepository operatorWindowRepository;
     private final BranchRepository branchRepository;
     private final QueueServiceRepository queueServiceRepository;
+    private final OperatorWindowServiceAssignmentRepository assignmentRepository;
 
     @Transactional
     public TicketResponse callNext(UUID windowId, UUID serviceId) {
@@ -43,11 +45,9 @@ public class TicketCallService {
         validateActiveBranch(operatorWindow.getBranchId());
         ensureWindowHasNoActiveTicket(operatorWindow.getId());
 
-        if (serviceId != null) {
-            validateActiveService(serviceId, operatorWindow.getBranchId());
-        }
+        List<UUID> callableServiceIds = resolveCallableServiceIds(operatorWindow, serviceId);
 
-        TicketEntity ticket = findNextWaitingTicket(operatorWindow.getBranchId(), serviceId)
+        TicketEntity ticket = findNextWaitingTicket(operatorWindow.getBranchId(), callableServiceIds)
                 .orElseThrow(() -> new NotFoundException("No waiting tickets found"));
 
         Instant now = Instant.now();
@@ -105,12 +105,31 @@ public class TicketCallService {
         }
     }
 
-    private Optional<TicketEntity> findNextWaitingTicket(UUID branchId, UUID serviceId) {
-        if (serviceId == null) {
-            return ticketRepository.findNextWaitingForUpdate(branchId);
+    private List<UUID> resolveCallableServiceIds(OperatorWindowEntity operatorWindow, UUID requestedServiceId) {
+        if (requestedServiceId != null) {
+            validateActiveService(requestedServiceId, operatorWindow.getBranchId());
+            ensureWindowSupportsService(operatorWindow.getId(), requestedServiceId);
+            return List.of(requestedServiceId);
         }
 
-        return ticketRepository.findNextWaitingByServiceForUpdate(branchId, serviceId);
+        List<UUID> assignedServiceIds = assignmentRepository.findServiceIdsByOperatorWindowId(operatorWindow.getId());
+        if (assignedServiceIds.isEmpty()) {
+            throw new ConflictException("Operator window has no assigned services");
+        }
+
+        return assignedServiceIds;
+    }
+
+    private void ensureWindowSupportsService(UUID windowId, UUID serviceId) {
+        boolean supportsService = assignmentRepository.existsByOperatorWindowIdAndServiceId(windowId, serviceId);
+
+        if (!supportsService) {
+            throw new BadRequestException("Operator window does not support this service");
+        }
+    }
+
+    private Optional<TicketEntity> findNextWaitingTicket(UUID branchId, List<UUID> serviceIds) {
+        return ticketRepository.findNextWaitingByServicesForUpdate(branchId, serviceIds);
     }
 
     private void saveStatusHistory(
