@@ -310,6 +310,12 @@ The application starts on:
 http://localhost:8080
 ```
 
+### Via general docker compose
+
+```bash
+docker compose -f docker-compose.app.yaml up
+```
+
 ## Swagger / OpenAPI
 
 Swagger UI is available at:
