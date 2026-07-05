@@ -1,6 +1,6 @@
-# QueueForge v1.0.0 Release Checklist
+# QueueForge v2.0.0 Release Checklist
 
-Use this checklist before creating the first stable MVP release tag.
+Use this checklist before creating the asynchronous events release tag.
 
 ## 1. Local verification
 
@@ -37,6 +37,12 @@ docker compose -f docker-compose.app.yaml up --build
 ```
 
 Verify the application starts successfully and Flyway applies all migrations.
+
+Verify that the Docker environment starts:
+
+- PostgreSQL
+- Kafka
+- QueueForge application
 
 Open Swagger UI:
 
@@ -84,7 +90,10 @@ Make sure README contains up-to-date information about:
 - test execution;
 - Swagger UI URL;
 - ticket lifecycle;
-- v1 scope;
+- transactional outbox;
+- Kafka dispatcher;
+- architecture diagram;
+- v2 scope;
 - future roadmap.
 
 ## 5. GitHub CI check
@@ -101,20 +110,20 @@ Push the branch and verify that the CI workflow passes:
 After all checks pass:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v2.0.0
+git push origin v2.0.0
 ```
 
 Suggested release title:
 
 ```text
-QueueForge v1.0.0 — Core Queue Management MVP
+QueueForge v2.0.0 — Transactional Outbox and Kafka Events
 ```
 
 Suggested release notes:
 
 ```text
-QueueForge v1.0.0 is the first complete MVP release of the electronic queue management backend.
+QueueForge v2.0.0 adds reliable asynchronous event publishing to the electronic queue management backend.
 
 Included:
 - organization, branch, queue service and operator window management;
@@ -123,10 +132,15 @@ Included:
 - call-next flow with PostgreSQL row locking;
 - ticket lifecycle management;
 - branch board read model;
+- transactional outbox table;
+- ticket lifecycle outbox events;
+- outbox publisher with retry handling;
+- Kafka dispatcher for outbox events;
+- Kafka integration test with Testcontainers;
 - Flyway database migrations;
 - integration and concurrency tests with Testcontainers;
 - Swagger / OpenAPI documentation;
-- Docker runtime with PostgreSQL.
+- Docker runtime with PostgreSQL and Kafka.
 ```
 
 ## 7. Post-release branch
@@ -134,5 +148,5 @@ Included:
 After the release, create a development branch for the next iteration:
 
 ```bash
-git checkout -b feature/v2-events-outbox
+git checkout -b feature/v3-redis-cache
 ```
