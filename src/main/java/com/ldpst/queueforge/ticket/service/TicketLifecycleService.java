@@ -15,6 +15,7 @@ import com.ldpst.queueforge.ticket.dto.TicketStatusHistoryResponse;
 import com.ldpst.queueforge.ticket.entity.TicketEntity;
 import com.ldpst.queueforge.ticket.entity.TicketStatus;
 import com.ldpst.queueforge.ticket.entity.TicketStatusHistoryEntity;
+import com.ldpst.queueforge.ticket.event.TicketEventPublisher;
 import com.ldpst.queueforge.ticket.repository.TicketRepository;
 import com.ldpst.queueforge.ticket.repository.TicketStatusHistoryRepository;
 
@@ -25,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 public class TicketLifecycleService {
     private final TicketRepository ticketRepository;
     private final TicketStatusHistoryRepository ticketStatusHistoryRepository;
+    private final TicketEventPublisher ticketEventPublisher;
 
     @Transactional
     public TicketResponse startService(UUID ticketId, String reason) {
@@ -38,7 +40,15 @@ public class TicketLifecycleService {
         ticket.setServiceStartedAt(now);
 
         TicketEntity savedTicket = ticketRepository.save(ticket);
-        saveStatusHistory(savedTicket.getId(), oldStatus, TicketStatus.IN_SERVICE, normalizeReason(reason, "Service started"), now);
+        String normalizedReason = normalizeReason(reason, "Service started");
+        saveStatusHistory(savedTicket.getId(), oldStatus, TicketStatus.IN_SERVICE, normalizedReason, now);
+        ticketEventPublisher.publishTicketStatusChanged(
+                savedTicket,
+                oldStatus,
+                TicketStatus.IN_SERVICE,
+                normalizedReason,
+                now
+        );
 
         return toResponse(savedTicket);
     }
@@ -54,7 +64,15 @@ public class TicketLifecycleService {
         ticket.setCompletedAt(now);
 
         TicketEntity savedTicket = ticketRepository.save(ticket);
-        saveStatusHistory(savedTicket.getId(), oldStatus, TicketStatus.COMPLETED, normalizeReason(reason, "Service completed"), now);
+        String normalizedReason = normalizeReason(reason, "Service completed");
+        saveStatusHistory(savedTicket.getId(), oldStatus, TicketStatus.COMPLETED, normalizedReason, now);
+        ticketEventPublisher.publishTicketStatusChanged(
+                savedTicket,
+                oldStatus,
+                TicketStatus.COMPLETED,
+                normalizedReason,
+                now
+        );
 
         return toResponse(savedTicket);
     }
@@ -71,7 +89,15 @@ public class TicketLifecycleService {
         ticket.setSkippedAt(now);
 
         TicketEntity savedTicket = ticketRepository.save(ticket);
-        saveStatusHistory(savedTicket.getId(), oldStatus, TicketStatus.SKIPPED, normalizeReason(reason, "Ticket skipped"), now);
+        String normalizedReason = normalizeReason(reason, "Ticket skipped");
+        saveStatusHistory(savedTicket.getId(), oldStatus, TicketStatus.SKIPPED, normalizedReason, now);
+        ticketEventPublisher.publishTicketStatusChanged(
+                savedTicket,
+                oldStatus,
+                TicketStatus.SKIPPED,
+                normalizedReason,
+                now
+        );
 
         return toResponse(savedTicket);
     }
@@ -87,7 +113,15 @@ public class TicketLifecycleService {
         ticket.setCancelledAt(now);
 
         TicketEntity savedTicket = ticketRepository.save(ticket);
-        saveStatusHistory(savedTicket.getId(), oldStatus, TicketStatus.CANCELLED, normalizeReason(reason, "Ticket cancelled"), now);
+        String normalizedReason = normalizeReason(reason, "Ticket cancelled");
+        saveStatusHistory(savedTicket.getId(), oldStatus, TicketStatus.CANCELLED, normalizedReason, now);
+        ticketEventPublisher.publishTicketStatusChanged(
+                savedTicket,
+                oldStatus,
+                TicketStatus.CANCELLED,
+                normalizedReason,
+                now
+        );
 
         return toResponse(savedTicket);
     }

@@ -24,6 +24,7 @@ import com.ldpst.queueforge.ticket.dto.TicketResponse;
 import com.ldpst.queueforge.ticket.entity.TicketEntity;
 import com.ldpst.queueforge.ticket.entity.TicketStatus;
 import com.ldpst.queueforge.ticket.entity.TicketStatusHistoryEntity;
+import com.ldpst.queueforge.ticket.event.TicketEventPublisher;
 import com.ldpst.queueforge.ticket.repository.TicketRepository;
 import com.ldpst.queueforge.ticket.repository.TicketStatusHistoryRepository;
 
@@ -38,6 +39,7 @@ public class TicketCallService {
     private final BranchRepository branchRepository;
     private final QueueServiceRepository queueServiceRepository;
     private final OperatorWindowServiceAssignmentRepository assignmentRepository;
+    private final TicketEventPublisher ticketEventPublisher;
 
     @Transactional
     public TicketResponse callNext(UUID windowId, UUID serviceId) {
@@ -56,7 +58,15 @@ public class TicketCallService {
         ticket.setCalledAt(now);
 
         TicketEntity savedTicket = ticketRepository.save(ticket);
-        saveStatusHistory(savedTicket.getId(), TicketStatus.WAITING, TicketStatus.CALLED, "Ticket called", now);
+        String reason = "Ticket called";
+        saveStatusHistory(savedTicket.getId(), TicketStatus.WAITING, TicketStatus.CALLED, reason, now);
+        ticketEventPublisher.publishTicketStatusChanged(
+                savedTicket,
+                TicketStatus.WAITING,
+                TicketStatus.CALLED,
+                reason,
+                now
+        );
 
         return toResponse(savedTicket);
     }

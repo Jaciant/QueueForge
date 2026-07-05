@@ -21,6 +21,7 @@ import com.ldpst.queueforge.ticket.dto.TicketResponse;
 import com.ldpst.queueforge.ticket.entity.TicketEntity;
 import com.ldpst.queueforge.ticket.entity.TicketStatus;
 import com.ldpst.queueforge.ticket.entity.TicketStatusHistoryEntity;
+import com.ldpst.queueforge.ticket.event.TicketEventPublisher;
 import com.ldpst.queueforge.ticket.repository.TicketRepository;
 import com.ldpst.queueforge.ticket.repository.TicketStatusHistoryRepository;
 
@@ -36,6 +37,7 @@ public class TicketManagementService {
     private final BranchRepository branchRepository;
     private final QueueServiceRepository queueServiceRepository;
     private final TicketNumberGenerator ticketNumberGenerator;
+    private final TicketEventPublisher ticketEventPublisher;
 
     @Transactional
     public TicketResponse create(CreateTicketRequest request) {
@@ -65,7 +67,9 @@ public class TicketManagementService {
         ticket.setCreatedAt(now);
 
         TicketEntity savedTicket = ticketRepository.save(ticket);
-        saveStatusHistory(savedTicket.getId(), null, TicketStatus.WAITING, "Ticket created", now);
+        String reason = "Ticket created";
+        saveStatusHistory(savedTicket.getId(), null, TicketStatus.WAITING, reason, now);
+        ticketEventPublisher.publishTicketIssued(savedTicket, reason, now);
 
         return toResponse(savedTicket);
     }
