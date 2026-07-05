@@ -31,3 +31,9 @@ outbox:
     max-retries: 3
     dispatcher: logging
     topic: queueforge.ticket-events
+
+queueforge:
+  cache:
+    branch-board:
+      enabled: false
+      ttl: 10s

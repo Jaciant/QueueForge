@@ -41,6 +41,7 @@ Core backend topics covered by the project:
 - Spring Validation
 - PostgreSQL 16
 - Apache Kafka
+- Redis
 - Flyway
 - Lombok
 - Testcontainers
@@ -57,6 +58,7 @@ QueueForge is intentionally implemented as a modular monolith. Business modules 
 flowchart TD
     Client["API client / Swagger"] --> Api["REST controllers"]
     Api --> Services["Application services"]
+    Services --> Redis[("Redis board cache")]
     Services --> Repositories["JPA repositories / native SQL"]
     Repositories --> Postgres[("PostgreSQL")]
     Services --> Outbox["Transactional outbox writer"]
@@ -393,7 +395,7 @@ docker compose -f docker-compose.app.yaml up --build
 The full Docker environment starts:
 
 ```text
-application + PostgreSQL + Kafka
+application + PostgreSQL + Kafka + Redis
 ```
 
 Kafka is available from the host on:
@@ -406,6 +408,12 @@ Inside Docker, the application connects to:
 
 ```text
 kafka:9092
+```
+
+Redis is available from the host on:
+
+```text
+localhost:6379
 ```
 
 ## Swagger / OpenAPI
@@ -568,7 +576,7 @@ GET /api/v1/branches/{branchId}/board
 
 ```text
 src/main/java/com/ldpst/queueforge
-├── board              # read-only branch board API
+├── board              # read-only branch board API and Redis cache
 ├── branch             # branch management
 ├── common             # shared exceptions and configuration
 ├── operatorwindow     # operator window management and service assignments

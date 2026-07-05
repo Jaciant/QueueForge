@@ -11,6 +11,11 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -37,3 +42,9 @@ outbox:
     max-retries: ${OUTBOX_PUBLISHER_MAX_RETRIES:3}
     dispatcher: ${OUTBOX_PUBLISHER_DISPATCHER:kafka}
     topic: ${OUTBOX_PUBLISHER_TOPIC:queueforge.ticket-events}
+
+queueforge:
+  cache:
+    branch-board:
+      enabled: ${QUEUEFORGE_CACHE_BRANCH_BOARD_ENABLED:true}
+      ttl: ${QUEUEFORGE_CACHE_BRANCH_BOARD_TTL:10s}

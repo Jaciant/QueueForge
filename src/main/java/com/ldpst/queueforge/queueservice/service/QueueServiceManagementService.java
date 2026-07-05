@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ldpst.queueforge.board.cache.BranchBoardCacheService;
 import com.ldpst.queueforge.branch.repository.BranchRepository;
 import com.ldpst.queueforge.common.exception.ConflictException;
 import com.ldpst.queueforge.common.exception.NotFoundException;
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 public class QueueServiceManagementService {
     private final QueueServiceRepository queueServiceRepository;
     private final BranchRepository branchRepository;
+    private final BranchBoardCacheService branchBoardCacheService;
 
     @Transactional
     public QueueServiceResponse create(UUID branchId, CreateQueueServiceRequest request) {
@@ -49,6 +51,7 @@ public class QueueServiceManagementService {
         queueService.setUpdatedAt(now);
 
         QueueServiceEntity savedQueueService = queueServiceRepository.save(queueService);
+        branchBoardCacheService.evict(branchId);
 
         return toResponse(savedQueueService);
     }
@@ -81,6 +84,8 @@ public class QueueServiceManagementService {
             queueService.setUpdatedAt(Instant.now());
         }
 
+        branchBoardCacheService.evict(queueService.getBranchId());
+
         return toResponse(queueService);
     }
 
@@ -92,6 +97,8 @@ public class QueueServiceManagementService {
             queueService.setActive(false);
             queueService.setUpdatedAt(Instant.now());
         }
+
+        branchBoardCacheService.evict(queueService.getBranchId());
 
         return toResponse(queueService);
     }
