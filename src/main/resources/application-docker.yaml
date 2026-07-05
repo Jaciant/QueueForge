@@ -5,6 +5,12 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:queueforge}
     driver-class-name: org.postgresql.Driver
 
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -22,3 +28,11 @@ logging:
   level:
     com.zaxxer.hikari: INFO
     org.hibernate.SQL: INFO
+
+outbox:
+  publisher:
+    enabled: ${OUTBOX_PUBLISHER_ENABLED:true}
+    batch-size: ${OUTBOX_PUBLISHER_BATCH_SIZE:100}
+    fixed-delay-ms: ${OUTBOX_PUBLISHER_FIXED_DELAY_MS:5000}
+    dispatcher: ${OUTBOX_PUBLISHER_DISPATCHER:kafka}
+    topic: ${OUTBOX_PUBLISHER_TOPIC:queueforge.ticket-events}

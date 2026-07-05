@@ -28,3 +28,5 @@ outbox:
     enabled: false
     batch-size: 100
     fixed-delay-ms: 5000
+    dispatcher: logging
+    topic: queueforge.ticket-events
