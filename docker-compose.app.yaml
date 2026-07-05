@@ -60,6 +60,7 @@ services:
       OUTBOX_PUBLISHER_ENABLED: "true"
       OUTBOX_PUBLISHER_DISPATCHER: kafka
       OUTBOX_PUBLISHER_TOPIC: queueforge.ticket-events
+      OUTBOX_PUBLISHER_MAX_RETRIES: 3
     ports:
       - "8080:8080"
     depends_on:

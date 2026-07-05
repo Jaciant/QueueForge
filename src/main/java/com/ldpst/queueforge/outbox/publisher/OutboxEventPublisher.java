@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ldpst.queueforge.outbox.config.OutboxPublisherProperties;
 import com.ldpst.queueforge.outbox.entity.OutboxEventEntity;
 import com.ldpst.queueforge.outbox.entity.OutboxEventStatus;
 import com.ldpst.queueforge.outbox.repository.OutboxEventRepository;
@@ -17,10 +18,14 @@ import lombok.RequiredArgsConstructor;
 public class OutboxEventPublisher {
     private final OutboxEventRepository outboxEventRepository;
     private final OutboxEventDispatcher outboxEventDispatcher;
+    private final OutboxPublisherProperties properties;
 
     @Transactional
     public int publishBatch(int batchSize) {
-        List<OutboxEventEntity> events = outboxEventRepository.findNewEventsForUpdate(batchSize);
+        List<OutboxEventEntity> events = outboxEventRepository.findPublishableEventsForUpdate(
+                properties.maxRetries(),
+                batchSize
+        );
 
         for (OutboxEventEntity event : events) {
             publishSingleEvent(event);
@@ -37,8 +42,16 @@ public class OutboxEventPublisher {
             event.setLastError(null);
         } catch (RuntimeException exception) {
             event.setStatus(OutboxEventStatus.FAILED);
-            event.setRetryCount(event.getRetryCount() + 1);
+            event.setRetryCount(resolveRetryCount(event) + 1);
             event.setLastError(exception.getMessage());
         }
+    }
+
+    private int resolveRetryCount(OutboxEventEntity event) {
+        if (event.getRetryCount() == null) {
+            return 0;
+        }
+
+        return event.getRetryCount();
     }
 }

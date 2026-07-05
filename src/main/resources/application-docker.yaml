@@ -34,5 +34,6 @@ outbox:
     enabled: ${OUTBOX_PUBLISHER_ENABLED:true}
     batch-size: ${OUTBOX_PUBLISHER_BATCH_SIZE:100}
     fixed-delay-ms: ${OUTBOX_PUBLISHER_FIXED_DELAY_MS:5000}
+    max-retries: ${OUTBOX_PUBLISHER_MAX_RETRIES:3}
     dispatcher: ${OUTBOX_PUBLISHER_DISPATCHER:kafka}
     topic: ${OUTBOX_PUBLISHER_TOPIC:queueforge.ticket-events}

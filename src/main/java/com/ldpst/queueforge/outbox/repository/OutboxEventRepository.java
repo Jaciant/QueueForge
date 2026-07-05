@@ -22,9 +22,13 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEventEntity, 
             select *
             from outbox_events
             where status = 'NEW'
+               or (status = 'FAILED' and retry_count < :maxRetries)
             order by created_at asc
             limit :batchSize
             for update skip locked
             """, nativeQuery = true)
-    List<OutboxEventEntity> findNewEventsForUpdate(@Param("batchSize") int batchSize);
+    List<OutboxEventEntity> findPublishableEventsForUpdate(
+            @Param("maxRetries") int maxRetries,
+            @Param("batchSize") int batchSize
+    );
 }
