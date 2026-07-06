@@ -1,6 +1,6 @@
-# QueueForge v2.0.0 Release Checklist
+# QueueForge v3.0.0 Release Checklist
 
-Use this checklist before creating the asynchronous events release tag.
+Use this checklist before creating the Redis branch board cache release tag.
 
 ## 1. Local verification
 
@@ -42,6 +42,7 @@ Verify that the Docker environment starts:
 
 - PostgreSQL
 - Kafka
+- Redis
 - QueueForge application
 
 Open Swagger UI:
@@ -79,7 +80,21 @@ Verify the core queue flow through Swagger UI, Postman, HTTP Client or curl:
 11. Check the branch board.
 12. Check ticket status history.
 
-## 4. Documentation check
+## 4. Redis cache smoke test
+
+Verify the branch board cache behavior in the Docker environment:
+
+1. Open `GET /api/v1/branches/{branchId}/board` once to warm the Redis cache.
+2. Issue a new ticket.
+3. Open the branch board again and verify the new ticket is visible.
+4. Call the next ticket.
+5. Open the branch board again and verify the active ticket/window state is visible.
+6. Start and complete the ticket.
+7. Open the branch board again and verify the completed ticket no longer appears as active.
+
+The important behavior is not only that Redis stores a board response, but that queue-changing commands evict the cached board before the next read.
+
+## 5. Documentation check
 
 Make sure README contains up-to-date information about:
 
@@ -92,11 +107,13 @@ Make sure README contains up-to-date information about:
 - ticket lifecycle;
 - transactional outbox;
 - Kafka dispatcher;
+- Redis branch board cache;
+- cache invalidation;
 - architecture diagram;
-- v2 scope;
+- v3 scope;
 - future roadmap.
 
-## 5. GitHub CI check
+## 6. GitHub CI check
 
 Push the branch and verify that the CI workflow passes:
 
@@ -105,25 +122,25 @@ Push the branch and verify that the CI workflow passes:
 - Docker image build;
 - Docker Compose config validation.
 
-## 6. Create release tag
+## 7. Create release tag
 
 After all checks pass:
 
 ```bash
-git tag v2.0.0
-git push origin v2.0.0
+git tag v3.0.0
+git push origin v3.0.0
 ```
 
 Suggested release title:
 
 ```text
-QueueForge v2.0.0 — Transactional Outbox and Kafka Events
+QueueForge v3.0.0 — Redis Branch Board Cache
 ```
 
 Suggested release notes:
 
 ```text
-QueueForge v2.0.0 adds reliable asynchronous event publishing to the electronic queue management backend.
+QueueForge v3.0.0 adds Redis-backed branch board caching to the electronic queue management backend.
 
 Included:
 - organization, branch, queue service and operator window management;
@@ -136,17 +153,21 @@ Included:
 - ticket lifecycle outbox events;
 - outbox publisher with retry handling;
 - Kafka dispatcher for outbox events;
+- Redis branch board cache;
+- cache-aside board reads with TTL;
+- cache invalidation after ticket, queue service and operator window changes;
 - Kafka integration test with Testcontainers;
+- Redis cache and cache invalidation integration tests with Testcontainers;
 - Flyway database migrations;
 - integration and concurrency tests with Testcontainers;
 - Swagger / OpenAPI documentation;
-- Docker runtime with PostgreSQL and Kafka.
+- Docker runtime with PostgreSQL, Kafka and Redis.
 ```
 
-## 7. Post-release branch
+## 8. Post-release branch
 
 After the release, create a development branch for the next iteration:
 
 ```bash
-git checkout -b feature/v3-redis-cache
+git checkout -b feature/v4-observability
 ```

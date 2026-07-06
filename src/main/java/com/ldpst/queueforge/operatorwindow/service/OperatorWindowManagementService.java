@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ldpst.queueforge.board.cache.BranchBoardCacheService;
 import com.ldpst.queueforge.branch.repository.BranchRepository;
 import com.ldpst.queueforge.common.exception.ConflictException;
 import com.ldpst.queueforge.common.exception.NotFoundException;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class OperatorWindowManagementService {
     private final OperatorWindowRepository operatorWindowRepository;
     private final BranchRepository branchRepository;
+    private final BranchBoardCacheService branchBoardCacheService;
 
     @Transactional
     public OperatorWindowResponse create(UUID branchId, CreateOperatorWindowRequest request) {
@@ -45,6 +47,7 @@ public class OperatorWindowManagementService {
         operatorWindow.setUpdatedAt(timeNow);
 
         OperatorWindowEntity savedOperatorWindow = operatorWindowRepository.save(operatorWindow);
+        branchBoardCacheService.evict(branchId);
 
         return toResponse(savedOperatorWindow);
     }
@@ -90,6 +93,7 @@ public class OperatorWindowManagementService {
         operatorWindow.setUpdatedAt(Instant.now());
 
         OperatorWindowEntity savedOperatorWindow = operatorWindowRepository.save(operatorWindow);
+        branchBoardCacheService.evict(savedOperatorWindow.getBranchId());
 
         return toResponse(savedOperatorWindow);
     }

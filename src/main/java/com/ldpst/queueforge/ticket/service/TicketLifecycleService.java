@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ldpst.queueforge.board.cache.BranchBoardCacheService;
 import com.ldpst.queueforge.common.exception.BadRequestException;
 import com.ldpst.queueforge.common.exception.NotFoundException;
 import com.ldpst.queueforge.ticket.dto.TicketResponse;
@@ -27,6 +28,7 @@ public class TicketLifecycleService {
     private final TicketRepository ticketRepository;
     private final TicketStatusHistoryRepository ticketStatusHistoryRepository;
     private final TicketEventPublisher ticketEventPublisher;
+    private final BranchBoardCacheService branchBoardCacheService;
 
     @Transactional
     public TicketResponse startService(UUID ticketId, String reason) {
@@ -49,6 +51,7 @@ public class TicketLifecycleService {
                 normalizedReason,
                 now
         );
+        branchBoardCacheService.evict(savedTicket.getBranchId());
 
         return toResponse(savedTicket);
     }
@@ -73,6 +76,7 @@ public class TicketLifecycleService {
                 normalizedReason,
                 now
         );
+        branchBoardCacheService.evict(savedTicket.getBranchId());
 
         return toResponse(savedTicket);
     }
@@ -98,6 +102,7 @@ public class TicketLifecycleService {
                 normalizedReason,
                 now
         );
+        branchBoardCacheService.evict(savedTicket.getBranchId());
 
         return toResponse(savedTicket);
     }
@@ -122,6 +127,7 @@ public class TicketLifecycleService {
                 normalizedReason,
                 now
         );
+        branchBoardCacheService.evict(savedTicket.getBranchId());
 
         return toResponse(savedTicket);
     }

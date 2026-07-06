@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ldpst.queueforge.board.cache.BranchBoardCacheService;
 import com.ldpst.queueforge.common.exception.BadRequestException;
 import com.ldpst.queueforge.common.exception.NotFoundException;
 import com.ldpst.queueforge.operatorwindow.entity.OperatorWindowEntity;
@@ -31,6 +32,7 @@ public class OperatorWindowServiceAssignmentService {
     private final OperatorWindowRepository operatorWindowRepository;
     private final QueueServiceRepository queueServiceRepository;
     private final OperatorWindowServiceAssignmentRepository assignmentRepository;
+    private final BranchBoardCacheService branchBoardCacheService;
 
     @Transactional
     public OperatorWindowServiceAssignmentsResponse replaceServices(
@@ -42,6 +44,7 @@ public class OperatorWindowServiceAssignmentService {
 
         if (requestedServiceIds.isEmpty()) {
             assignmentRepository.deleteAllByOperatorWindowId(windowId);
+            branchBoardCacheService.evict(operatorWindow.getBranchId());
             return new OperatorWindowServiceAssignmentsResponse(windowId, List.of());
         }
 
@@ -57,6 +60,7 @@ public class OperatorWindowServiceAssignmentService {
                 .toList();
 
         assignmentRepository.saveAll(assignments);
+        branchBoardCacheService.evict(operatorWindow.getBranchId());
 
         return toResponse(windowId, sortByRequestOrder(requestedServiceIds, queueServices));
     }

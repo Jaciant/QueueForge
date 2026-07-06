@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ldpst.queueforge.board.cache.BranchBoardCacheService;
 import com.ldpst.queueforge.board.dto.AssignedQueueServiceBoardResponse;
 import com.ldpst.queueforge.board.dto.BranchBoardResponse;
 import com.ldpst.queueforge.board.dto.OperatorWindowBoardResponse;
@@ -34,9 +35,15 @@ public class BranchBoardService {
     private final QueueServiceRepository queueServiceRepository;
     private final OperatorWindowRepository operatorWindowRepository;
     private final BranchBoardQueryRepository branchBoardQueryRepository;
+    private final BranchBoardCacheService branchBoardCacheService;
 
     @Transactional(readOnly = true)
     public BranchBoardResponse getBoard(UUID branchId) {
+        return branchBoardCacheService.get(branchId)
+                .orElseGet(() -> loadAndCacheBoard(branchId));
+    }
+
+    private BranchBoardResponse loadAndCacheBoard(UUID branchId) {
         BranchEntity branch = branchRepository.findById(branchId)
                 .orElseThrow(() -> new NotFoundException("Branch not found"));
 
@@ -93,7 +100,7 @@ public class BranchBoardService {
 
         long totalWaitingCount = waitingTicketResponses.size();
 
-        return new BranchBoardResponse(
+        BranchBoardResponse response = new BranchBoardResponse(
                 branch.getId(),
                 branch.getName(),
                 branch.getStatus(),
@@ -104,6 +111,10 @@ public class BranchBoardService {
                 waitingTicketResponses,
                 activeTicketResponses
         );
+
+        branchBoardCacheService.put(branchId, response);
+
+        return response;
     }
 
     private QueueServiceBoardResponse toQueueServiceResponse(

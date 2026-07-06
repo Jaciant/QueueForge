@@ -46,6 +46,18 @@ services:
       retries: 12
       start_period: 20s
 
+  redis:
+    image: redis:7.2-alpine
+    container_name: queueforge-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   app:
     build:
       context: .
@@ -61,12 +73,18 @@ services:
       OUTBOX_PUBLISHER_DISPATCHER: kafka
       OUTBOX_PUBLISHER_TOPIC: queueforge.ticket-events
       OUTBOX_PUBLISHER_MAX_RETRIES: 3
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      QUEUEFORGE_CACHE_BRANCH_BOARD_ENABLED: "true"
+      QUEUEFORGE_CACHE_BRANCH_BOARD_TTL: 10s
     ports:
       - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
 volumes:

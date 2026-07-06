@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ldpst.queueforge.board.cache.BranchBoardCacheService;
 import com.ldpst.queueforge.branch.entity.BranchEntity;
 import com.ldpst.queueforge.branch.entity.BranchStatus;
 import com.ldpst.queueforge.branch.repository.BranchRepository;
@@ -38,6 +39,7 @@ public class TicketManagementService {
     private final QueueServiceRepository queueServiceRepository;
     private final TicketNumberGenerator ticketNumberGenerator;
     private final TicketEventPublisher ticketEventPublisher;
+    private final BranchBoardCacheService branchBoardCacheService;
 
     @Transactional
     public TicketResponse create(CreateTicketRequest request) {
@@ -70,6 +72,7 @@ public class TicketManagementService {
         String reason = "Ticket created";
         saveStatusHistory(savedTicket.getId(), null, TicketStatus.WAITING, reason, now);
         ticketEventPublisher.publishTicketIssued(savedTicket, reason, now);
+        branchBoardCacheService.evict(savedTicket.getBranchId());
 
         return toResponse(savedTicket);
     }

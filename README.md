@@ -2,7 +2,7 @@
 
 QueueForge is a backend application for electronic queue management. The project models a real queue system for offices, service centers, banks, government branches or similar organizations where clients receive tickets, wait in a queue and are called to operator windows.
 
-The current version is a monolithic Spring Boot backend focused on correct business flow, transactional consistency, database-level concurrency safety and reliable asynchronous event publishing through the transactional outbox pattern.
+The current version is a monolithic Spring Boot backend focused on correct business flow, transactional consistency, database-level concurrency safety, reliable asynchronous event publishing through the transactional outbox pattern and Redis-backed read model caching.
 
 ## What the project demonstrates
 
@@ -28,7 +28,9 @@ Core backend topics covered by the project:
 - transactional outbox for reliable ticket lifecycle events
 - Kafka publishing through an outbox dispatcher
 - retry handling for temporarily failed event dispatch
-- integration testing with Testcontainers PostgreSQL and Kafka
+- Redis cache-aside read model caching for the branch board
+- cache invalidation on queue-changing commands
+- integration testing with Testcontainers PostgreSQL, Kafka and Redis
 - OpenAPI / Swagger documentation
 
 ## Tech stack
@@ -41,6 +43,7 @@ Core backend topics covered by the project:
 - Spring Validation
 - PostgreSQL 16
 - Apache Kafka
+- Redis
 - Flyway
 - Lombok
 - Testcontainers
@@ -57,12 +60,19 @@ QueueForge is intentionally implemented as a modular monolith. Business modules 
 flowchart TD
     Client["API client / Swagger"] --> Api["REST controllers"]
     Api --> Services["Application services"]
+
     Services --> Repositories["JPA repositories / native SQL"]
     Repositories --> Postgres[("PostgreSQL")]
+
     Services --> Outbox["Transactional outbox writer"]
     Outbox --> Postgres
+
     Publisher["Outbox publisher"] --> Postgres
     Publisher --> Kafka["Kafka topic"]
+    
+    Services --> Cache["Branch board cache service"]
+    Cache --> Redis[("Redis")]
+
 ```
 
 Main request flow:
@@ -339,6 +349,34 @@ for update skip locked
 
 This allows multiple publisher workers to run without publishing the same event twice.
 
+## Branch board cache
+
+`GET /api/v1/branches/{branchId}/board` is a read-heavy endpoint, so QueueForge can cache the branch board response in Redis.
+
+The cache uses a cache-aside strategy:
+
+1. The branch board service first tries to read the response from Redis.
+2. If the key is missing, the service builds the board from PostgreSQL.
+3. The computed response is written back to Redis with a short TTL.
+
+Cache keys are scoped by branch:
+
+```text
+queueforge:branch-board:{branchId}
+```
+
+The cache is intentionally invalidated by commands that can change the board:
+
+- ticket issue;
+- call next;
+- start service;
+- complete, skip or cancel ticket;
+- queue service enable or disable;
+- operator window create, open, pause or close;
+- operator window service assignment replacement.
+
+Redis is treated as an optimization, not as the source of truth. If Redis is temporarily unavailable, QueueForge logs the cache failure and falls back to PostgreSQL.
+
 ## Running locally
 
 ### Requirements
@@ -393,7 +431,7 @@ docker compose -f docker-compose.app.yaml up --build
 The full Docker environment starts:
 
 ```text
-application + PostgreSQL + Kafka
+application + PostgreSQL + Kafka + Redis
 ```
 
 Kafka is available from the host on:
@@ -407,6 +445,21 @@ Inside Docker, the application connects to:
 ```text
 kafka:9092
 ```
+
+Redis is available from the host on:
+
+```text
+localhost:6379
+```
+
+In the Docker profile, the branch board cache is enabled by default:
+
+```text
+QUEUEFORGE_CACHE_BRANCH_BOARD_ENABLED=true
+QUEUEFORGE_CACHE_BRANCH_BOARD_TTL=10s
+```
+
+For the default local `dev` profile, the cache stays disabled unless you enable it explicitly.
 
 ## Swagger / OpenAPI
 
@@ -454,7 +507,14 @@ Run only Kafka dispatcher integration tests:
 .\gradlew.bat test --tests "*KafkaOutboxDispatcherIntegrationTest"
 ```
 
-Integration tests use Testcontainers and start temporary PostgreSQL and Kafka containers. They do not use the local development database.
+Run only Redis branch board cache tests:
+
+```powershell
+.\gradlew.bat test --tests "*BranchBoardCacheIntegrationTest"
+.\gradlew.bat test --tests "*BranchBoardCacheInvalidationIntegrationTest"
+```
+
+Integration tests use Testcontainers and start temporary PostgreSQL, Kafka and Redis containers. They do not use the local development database.
 
 ## Example flow
 
@@ -568,7 +628,7 @@ GET /api/v1/branches/{branchId}/board
 
 ```text
 src/main/java/com/ldpst/queueforge
-├── board              # read-only branch board API
+├── board              # read-only branch board API and Redis cache
 ├── branch             # branch management
 ├── common             # shared exceptions and configuration
 ├── operatorwindow     # operator window management and service assignments
@@ -580,7 +640,7 @@ src/main/java/com/ldpst/queueforge
 
 ## Current release scope
 
-The current release focuses on a reliable backend core with asynchronous event publishing:
+The current release focuses on a reliable backend core with asynchronous event publishing and Redis-backed read model caching:
 
 - complete queue business flow
 - PostgreSQL-backed persistence
@@ -591,16 +651,11 @@ The current release focuses on a reliable backend core with asynchronous event p
 - transactional outbox
 - Kafka dispatcher
 - outbox retry handling
-- local development via Docker Compose with PostgreSQL and Kafka
+- Redis branch board cache
+- branch board cache invalidation on queue-changing commands
+- local development via Docker Compose with PostgreSQL, Kafka and Redis
 
 ## Planned next versions
-
-### v3: caching and performance
-
-- Redis cache for read models
-- queue board caching
-- rate limiting
-- load testing
 
 ### v4: observability
 
@@ -608,3 +663,10 @@ The current release focuses on a reliable backend core with asynchronous event p
 - Prometheus integration
 - Grafana dashboard
 - structured logging
+
+### v5: performance hardening
+
+- rate limiting
+- load testing
+- query tuning
+- cache hit/miss metrics
