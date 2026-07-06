@@ -22,3 +22,12 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
+
+outbox:
+  publisher:
+    enabled: false
+    batch-size: 100
+    fixed-delay-ms: 5000
+    max-retries: 3
+    dispatcher: logging
+    topic: queueforge.ticket-events

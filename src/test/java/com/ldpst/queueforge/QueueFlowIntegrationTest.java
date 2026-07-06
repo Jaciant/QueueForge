@@ -23,6 +23,9 @@ import org.springframework.http.ResponseEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ldpst.queueforge.outbox.entity.OutboxEventEntity;
+import com.ldpst.queueforge.outbox.entity.OutboxEventStatus;
+import com.ldpst.queueforge.outbox.repository.OutboxEventRepository;
 
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -32,6 +35,9 @@ class QueueFlowIntegrationTest {
 
     @Autowired
     private TestRestTemplate restTemplate;
+
+    @Autowired
+    private OutboxEventRepository outboxEventRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -85,6 +91,22 @@ class QueueFlowIntegrationTest {
         assertThat(history.get(2).get("newStatus").asText()).isEqualTo("IN_SERVICE");
         assertThat(history.get(3).get("oldStatus").asText()).isEqualTo("IN_SERVICE");
         assertThat(history.get(3).get("newStatus").asText()).isEqualTo("COMPLETED");
+
+        List<OutboxEventEntity> ticketEvents = outboxEventRepository
+                .findAllByAggregateTypeAndAggregateIdOrderByCreatedAtAsc("Ticket", calledTicketId);
+        assertThat(ticketEvents)
+                .extracting(OutboxEventEntity::getEventType)
+                .containsExactly("TicketIssued", "TicketCalled", "TicketServiceStarted", "TicketCompleted");
+        assertThat(ticketEvents)
+                .extracting(OutboxEventEntity::getStatus)
+                .containsOnly(OutboxEventStatus.NEW);
+        assertThat(ticketEvents.get(0).getPayload().get("newStatus").asText()).isEqualTo("WAITING");
+        assertThat(ticketEvents.get(1).getPayload().get("oldStatus").asText()).isEqualTo("WAITING");
+        assertThat(ticketEvents.get(1).getPayload().get("newStatus").asText()).isEqualTo("CALLED");
+        assertThat(ticketEvents.get(2).getPayload().get("oldStatus").asText()).isEqualTo("CALLED");
+        assertThat(ticketEvents.get(2).getPayload().get("newStatus").asText()).isEqualTo("IN_SERVICE");
+        assertThat(ticketEvents.get(3).getPayload().get("oldStatus").asText()).isEqualTo("IN_SERVICE");
+        assertThat(ticketEvents.get(3).getPayload().get("newStatus").asText()).isEqualTo("COMPLETED");
 
         JsonNode boardAfterComplete = getOk(API + "/branches/" + fixture.branchId() + "/board");
         assertThat(boardAfterComplete.get("activeTickets").size()).isZero();

@@ -2,7 +2,7 @@
 
 QueueForge is a backend application for electronic queue management. The project models a real queue system for offices, service centers, banks, government branches or similar organizations where clients receive tickets, wait in a queue and are called to operator windows.
 
-The current version is a monolithic Spring Boot MVP focused on correct business flow, transactional consistency and database-level concurrency safety.
+The current version is a monolithic Spring Boot backend focused on correct business flow, transactional consistency, database-level concurrency safety and reliable asynchronous event publishing through the transactional outbox pattern.
 
 ## What the project demonstrates
 
@@ -25,7 +25,10 @@ Core backend topics covered by the project:
 - native SQL / JdbcTemplate for database-specific atomic operations
 - locking for concurrent business operations
 - `FOR UPDATE SKIP LOCKED` for safe parallel ticket calling
-- integration testing with Testcontainers PostgreSQL
+- transactional outbox for reliable ticket lifecycle events
+- Kafka publishing through an outbox dispatcher
+- retry handling for temporarily failed event dispatch
+- integration testing with Testcontainers PostgreSQL and Kafka
 - OpenAPI / Swagger documentation
 
 ## Tech stack
@@ -34,8 +37,10 @@ Core backend topics covered by the project:
 - Spring Boot 4.1
 - Spring Web MVC
 - Spring Data JPA
+- Spring Kafka
 - Spring Validation
 - PostgreSQL 16
+- Apache Kafka
 - Flyway
 - Lombok
 - Testcontainers
@@ -43,6 +48,36 @@ Core backend topics covered by the project:
 - Swagger / OpenAPI via springdoc-openapi
 - Gradle
 - Docker Compose
+
+## Architecture
+
+QueueForge is intentionally implemented as a modular monolith. Business modules stay inside one deployable application, while integration with Kafka is isolated behind the outbox publisher.
+
+```mermaid
+flowchart TD
+    Client["API client / Swagger"] --> Api["REST controllers"]
+    Api --> Services["Application services"]
+    Services --> Repositories["JPA repositories / native SQL"]
+    Repositories --> Postgres[("PostgreSQL")]
+    Services --> Outbox["Transactional outbox writer"]
+    Outbox --> Postgres
+    Publisher["Outbox publisher"] --> Postgres
+    Publisher --> Kafka["Kafka topic"]
+```
+
+Main request flow:
+
+```text
+HTTP request -> Controller -> Service -> Repository -> PostgreSQL
+```
+
+Event flow:
+
+```text
+Ticket business transaction -> outbox_events row -> publisher -> Kafka topic
+```
+
+The important part is that ticket state changes and outbox event creation happen in the same database transaction. If the transaction rolls back, both the business change and the event are rolled back. Kafka publishing happens later from the `outbox_events` table.
 
 ## Domain model
 
@@ -265,6 +300,45 @@ This prevents two windows from calling the same waiting ticket.
 
 The operator window row is locked with pessimistic locking before calling the next ticket. This prevents one window from receiving two active tickets at the same time.
 
+## Event publishing
+
+Ticket lifecycle operations write events into the `outbox_events` table:
+
+```text
+TicketIssued
+TicketCalled
+TicketServiceStarted
+TicketCompleted
+TicketSkipped
+TicketCancelled
+```
+
+Each event contains:
+
+- event type
+- aggregate type
+- aggregate id
+- JSON payload
+- status
+- retry count
+- creation and publishing timestamps
+
+Outbox event statuses:
+
+```text
+NEW -> PUBLISHED
+NEW -> FAILED -> PUBLISHED
+NEW -> FAILED -> FAILED -> ... until max retries
+```
+
+The publisher uses PostgreSQL locking to safely process batches:
+
+```sql
+for update skip locked
+```
+
+This allows multiple publisher workers to run without publishing the same event twice.
+
 ## Running locally
 
 ### Requirements
@@ -313,7 +387,25 @@ http://localhost:8080
 ### Via general docker compose
 
 ```bash
-docker compose -f docker-compose.app.yaml up
+docker compose -f docker-compose.app.yaml up --build
+```
+
+The full Docker environment starts:
+
+```text
+application + PostgreSQL + Kafka
+```
+
+Kafka is available from the host on:
+
+```text
+localhost:9092
+```
+
+Inside Docker, the application connects to:
+
+```text
+kafka:9092
 ```
 
 ## Swagger / OpenAPI
@@ -356,7 +448,13 @@ Run only concurrency integration tests:
 .\gradlew.bat test --tests "*QueueConcurrencyIntegrationTest"
 ```
 
-Integration tests use Testcontainers and start a temporary PostgreSQL container. They do not use the local development database.
+Run only Kafka dispatcher integration tests:
+
+```powershell
+.\gradlew.bat test --tests "*KafkaOutboxDispatcherIntegrationTest"
+```
+
+Integration tests use Testcontainers and start temporary PostgreSQL and Kafka containers. They do not use the local development database.
 
 ## Example flow
 
@@ -475,13 +573,14 @@ src/main/java/com/ldpst/queueforge
 ├── common             # shared exceptions and configuration
 ├── operatorwindow     # operator window management and service assignments
 ├── organization       # organization management
+├── outbox             # transactional outbox and event publishing
 ├── queueservice       # queue service catalog
 └── ticket             # ticket issue, call-next and lifecycle
 ```
 
 ## Current release scope
 
-The first release focuses on a stable monolithic MVP:
+The current release focuses on a reliable backend core with asynchronous event publishing:
 
 - complete queue business flow
 - PostgreSQL-backed persistence
@@ -489,16 +588,12 @@ The first release focuses on a stable monolithic MVP:
 - integration tests
 - concurrency tests
 - Swagger documentation
-- local development via Docker Compose
+- transactional outbox
+- Kafka dispatcher
+- outbox retry handling
+- local development via Docker Compose with PostgreSQL and Kafka
 
 ## Planned next versions
-
-### v2: asynchronous events
-
-- domain events
-- Kafka integration
-- transactional outbox pattern
-- event publisher
 
 ### v3: caching and performance
 
